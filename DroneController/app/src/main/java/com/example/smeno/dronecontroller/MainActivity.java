@@ -93,9 +93,9 @@ public class MainActivity extends Activity implements SensorEventListener {
                 omegaZ /= omegaMagnitude;
             }
 
-            position[0]=omegaX*dT;
-            position[1]=omegaY*dT;
-            position[2]=omegaZ*dT;
+            position[0]+=omegaX*dT;
+            position[1]+=omegaY*dT;
+            position[2]+=omegaZ*dT;
 
         }
     }
