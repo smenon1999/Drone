@@ -8,8 +8,15 @@ Adafruit_LSM9DS0 lsm = Adafruit_LSM9DS0();
 float pos[3];
 float dT=1/100;
 float zeroOffset[3];
-
 float timeStamp=0;
+
+
+
+int count=0;
+float averageX;
+float averageY;
+float averageZ;
+
 
 void setup() {
   Serial.begin(9600);
@@ -39,9 +46,18 @@ void loop() {
   float dT=timeStamp;
   sensors_event_t accel, gyro, mag, temp;
   lsm.getEvent(&accel, &gyro, &mag, &temp);
+
+  count++;
   float ratex = (gyro.gyro.x/1.0000000000f)-zeroOffset[0];
   float ratey = (gyro.gyro.y/1.0000000000f)-zeroOffset[1];
   float ratez = (gyro.gyro.z/1.0000000000f)-zeroOffset[2];
+
+  averageX=((averageX*count)+rateX)/count;
+  averageY=((averageY*count)+rateY)/count;
+  averageZ=((averageZ*count)+rateZ)/count;
+
+
+  
   if (firstRun) {
     zeroOffset[0]=ratex;
     zeroOffset[1]=ratey;
@@ -49,9 +65,9 @@ void loop() {
     firstRun=false;
   }
 
-  pos[0]+=ratex*dT;
-  pos[1]+=ratey*dT;
-  pos[2]+=ratez*dT;
+  pos[0]+=averageX*dT;
+  pos[1]+=averageY*dT;
+  pos[2]+=averageZ*dT;
 
 
   Serial.print("X: ");Serial.println(pos[0]);
