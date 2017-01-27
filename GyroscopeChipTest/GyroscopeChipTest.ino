@@ -1,79 +1,72 @@
-#include <Wire.h>
 #include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
 #include <Adafruit_LSM9DS0.h>
-#include <Adafruit_Sensor.h> 
+#include <Adafruit_Simple_AHRS.h>
 
-//Adafruit_LSM9DS0 lsm = Adafruit_LSM9DS0(13, 12, 11, 10, 9);
-Adafruit_LSM9DS0 lsm = Adafruit_LSM9DS0();
-float pos[3];
-float dT=1/100;
-float zeroOffset[3];
-float timeStamp=0;
+// Create LSM9DS0 board instance.
+Adafruit_LSM9DS0     lsm(1000);  // Use I2C, ID #1000
 
+// Create simple AHRS algorithm using the LSM9DS0 instance's accelerometer and magnetometer.
+Adafruit_Simple_AHRS ahrs(&lsm.getAccel(), &lsm.getMag());
 
+// Function to configure the sensors on the LSM9DS0 board.
+// You don't need to change anything here, but have the option to select different
+// range and gain values.
+void configureLSM9DS0(void)
+{
+  // 1.) Set the accelerometer range
+  lsm.setupAccel(lsm.LSM9DS0_ACCELRANGE_2G);
+  //lsm.setupAccel(lsm.LSM9DS0_ACCELRANGE_4G);
+  //lsm.setupAccel(lsm.LSM9DS0_ACCELRANGE_6G);
+  //lsm.setupAccel(lsm.LSM9DS0_ACCELRANGE_8G);
+  //lsm.setupAccel(lsm.LSM9DS0_ACCELRANGE_16G);
+  
+  // 2.) Set the magnetometer sensitivity
+  lsm.setupMag(lsm.LSM9DS0_MAGGAIN_2GAUSS);
+  //lsm.setupMag(lsm.LSM9DS0_MAGGAIN_4GAUSS);
+  //lsm.setupMag(lsm.LSM9DS0_MAGGAIN_8GAUSS);
+  //lsm.setupMag(lsm.LSM9DS0_MAGGAIN_12GAUSS);
 
-int count=0;
-float averageX;
-float averageY;
-float averageZ;
-
-
-void setup() {
-  Serial.begin(9600);
-
-  for (int i=0;i<3;i++) {
-    pos[i]=0;
-    zeroOffset[i]=0;
-  }
-  if (!lsm.begin())
-  {
-    Serial.println("No Sensor detected!");
-  }
-  lsm.setupGyro(lsm.LSM9DS0_GYROSCALE_2000DPS);
-  // put your setup code here, to run once:
-
+  // 3.) Setup the gyroscope
+  lsm.setupGyro(lsm.LSM9DS0_GYROSCALE_245DPS);
+  //lsm.setupGyro(lsm.LSM9DS0_GYROSCALE_500DPS);
+  //lsm.setupGyro(lsm.LSM9DS0_GYROSCALE_2000DPS);
 }
 
-bool firstRun=true;
-void loop() {
-
-  // put your main code here, to run repeatedly:
-  if (timeStamp==0)
-    timeStamp=millis();
-  else
-    timeStamp=millis()-timeStamp;
-
-  float dT=timeStamp;
-  sensors_event_t accel, gyro, mag, temp;
-  lsm.getEvent(&accel, &gyro, &mag, &temp);
-
-  count++;
-  float ratex = (gyro.gyro.x/1.0000000000f)-zeroOffset[0];
-  float ratey = (gyro.gyro.y/1.0000000000f)-zeroOffset[1];
-  float ratez = (gyro.gyro.z/1.0000000000f)-zeroOffset[2];
-
-  averageX=((averageX*count)+rateX)/count;
-  averageY=((averageY*count)+rateY)/count;
-  averageZ=((averageZ*count)+rateZ)/count;
-
-
+void setup(void) 
+{
+  Serial.begin(9600);
+  Serial.println(F("Adafruit LSM9DS0 9 DOF Board AHRS Example")); Serial.println("");
   
-  if (firstRun) {
-    zeroOffset[0]=ratex;
-    zeroOffset[1]=ratey;
-    zeroOffset[2]=ratez;
-    firstRun=false;
+  // Initialise the LSM9DS0 board.
+  if(!lsm.begin())
+  {
+    // There was a problem detecting the LSM9DS0 ... check your connections
+    Serial.print(F("Ooops, no LSM9DS0 detected ... Check your wiring or I2C ADDR!"));
+    while(1);
   }
+  
+  // Setup the sensor gain and integration time.
+  configureLSM9DS0();
+}
 
-  pos[0]+=averageX*dT;
-  pos[1]+=averageY*dT;
-  pos[2]+=averageZ*dT;
+void loop(void) 
+{
+  sensors_vec_t   orientation;
 
-
-  Serial.print("X: ");Serial.println(pos[0]);
-  Serial.print("Y: ");Serial.println(pos[1]);
-  Serial.print("Z: ");Serial.println(pos[2]);
-  delay(1000);
-
-
+  // Use the simple AHRS function to get the current orientation.
+  if (ahrs.getOrientation(&orientation))
+  {
+    /* 'orientation' should have valid .roll and .pitch fields */
+    Serial.print(F("Orientation: "));
+    Serial.print((int)(orientation.roll));
+    Serial.print(F(" "));
+    Serial.print((int)(orientation.pitch)+1);
+    Serial.print(F(" "));
+    Serial.print((int)orientation.heading+128);
+    Serial.println(F(""));
+  }
+  
+  delay(100);
 }
