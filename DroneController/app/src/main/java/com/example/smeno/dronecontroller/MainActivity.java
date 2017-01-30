@@ -15,13 +15,16 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.hardware.SensorEvent;
 import android.widget.Toast;
-
+import android.util.Log;
 public class MainActivity extends Activity implements SensorEventListener {
 
     // motion instance variables
     private ArrayList<BluetoothDevice> devices;
+    private BluetoothGatt gatt;
     private SensorManager sensormanager;
-    private Sensor gyroscope;
+    private Sensor accelerometer;
+    private Sensor magnetometer;
+    private float yaw,pitch,roll;
     private final float PI=3.14159265f;
     private final float EPSILON=PI/24;
     float [] position=new float[3];
@@ -63,55 +66,77 @@ public class MainActivity extends Activity implements SensorEventListener {
         for (int i=0;i<3;i++)
             position[i]=0;
         sensormanager=(SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        gyroscope=sensormanager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
-        sensormanager.registerListener(this, gyroscope, SensorManager.SENSOR_DELAY_NORMAL);
+        accelerometer=sensormanager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        magnetometer=sensormanager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        sensormanager.registerListener(this, magnetometer, SensorManager.SENSOR_DELAY_NORMAL);
+        sensormanager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
     }
 
     //
     //
     // onSensorChanged() - gets called whenever the Sensor senses new data
     // @param {SensorEvent event} - the event that occurs when the Sensor senses new data
-    protected long timestamp;
     @Override
     public void onSensorChanged(SensorEvent event) {
-
-        if (timestamp!=0) {
-
-            // integrate rotational velocity to find position.
-            float dT=(event.timestamp-timestamp)/1000000000.0f;
-            float omegaX=event.values[0];
-            float omegaY=event.values[1];
-            float omegaZ=event.values[2];
-
-            // Calculate the angular speed of the sample
-            float omegaMagnitude = (float)Math.sqrt(omegaX*omegaX + omegaY*omegaY + omegaZ*omegaZ);
-
-            // Normalize the rotation vector if it's big enough to get the axis
-            if (omegaMagnitude > EPSILON) {
-                omegaX /= omegaMagnitude;
-                omegaY /= omegaMagnitude;
-                omegaZ /= omegaMagnitude;
+        float[] mGravity=new float[3];
+        float[] mGeomagnetic=new float[3];
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
+            mGravity = event.values;
+        if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD)
+            mGeomagnetic = event.values;
+        if (mGravity != null && mGeomagnetic != null) {
+            float R[] = new float[9];
+            float I[] = new float[9];
+            boolean success = SensorManager.getRotationMatrix(R, I, mGravity, mGeomagnetic);
+            if (success) {
+                float orientation[] = new float[3];
+                SensorManager.getOrientation(R, orientation);
+                yaw = (float)Math.toDegrees(orientation[0]);
+                pitch = (float)Math.toDegrees(orientation[1]);
+                roll = (float)Math.toDegrees(orientation[2]);
             }
-
-            position[0]+=omegaX*dT;
-            position[1]+=omegaY*dT;
-            position[2]+=omegaZ*dT;
-
         }
     }
+
+    // don't implement
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+    }
+
 
     public void connectToBluetooth(View view) {
         BluetoothLeScanner scanner=bluetoothAdapter.getBluetoothLeScanner();
         scanner.startScan(bleCallbackFunction);
-        scanner.stopScan(bleCallbackFunction);
 
         for (BluetoothDevice device:devices) {
             String name=device.getName();
-            if (name.equals("Adafruit EZ-Link af69")) {
-
+            if (name.equals("UART")) {
+                gatt=device.connectGatt(this,false,gattCallback);
+                scanner.stopScan(bleCallbackFunction);
             }
         }
     }
+
+
+    private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
+        @Override
+        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+            Log.i("onConnectionStateChange", "Status: " + status);
+            switch (newState) {
+                case BluetoothProfile.STATE_CONNECTED:
+                    Log.i("gattCallback", "STATE_CONNECTED");
+                    gatt.discoverServices();
+                    break;
+                case BluetoothProfile.STATE_DISCONNECTED:
+                    Log.e("gattCallback", "STATE_DISCONNECTED");
+                    break;
+                default:
+                    Log.e("gattCallback", "STATE_OTHER");
+            }
+
+        }
+    };
 
     ScanCallback bleCallbackFunction = new ScanCallback(){
         @Override
@@ -125,11 +150,6 @@ public class MainActivity extends Activity implements SensorEventListener {
             devices.add(device);
         }
     };
-    // don't implement
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-
-    }
 
 
     /**
