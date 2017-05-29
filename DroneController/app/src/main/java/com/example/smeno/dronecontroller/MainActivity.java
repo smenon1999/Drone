@@ -56,12 +56,12 @@ public class MainActivity extends Activity implements SensorEventListener {
     protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
         if (requestCode==76912343) {
             if (resultCode==RESULT_CANCELED||resultCode!=RESULT_OK)
-                Toast.makeText(this, "Please turn on bluetooth to use this app", Toast.LENGTH_SHORT);
+                Toast.makeText(this, "Please turn on bluetooth to use this app", Toast.LENGTH_SHORT).show();
         }
 
     }
 
-
+	// everytime there is a change in data on the gyroscope, magnetometer, and accelerometer, register the flight controller data, and send via bluetooth
     private void initMotion() {
         for (int i=0;i<3;i++)
             position[i]=0;
@@ -76,6 +76,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     //
     // onSensorChanged() - gets called whenever the Sensor senses new data
     // @param {SensorEvent event} - the event that occurs when the Sensor senses new data
+	// function to register the angle data.
     @Override
     public void onSensorChanged(SensorEvent event) {
         float[] mGravity=new float[3];
@@ -97,9 +98,16 @@ public class MainActivity extends Activity implements SensorEventListener {
             }
         }
     }
+	
+	/* make sure to fix bluetooth callbacks, so that we can connect to Arduino board and controll the drone.  
+	 *
+	 *
+	 *
+	 */
 
     // don't implement
     @Override
+	// used to calibrate accuracy, doesn't require calibration precion
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
 
     }
@@ -141,7 +149,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     ScanCallback bleCallbackFunction = new ScanCallback(){
         @Override
         public void onScanFailed(int errorCode) {
-            Toast.makeText(getApplicationContext(), "Couldn't start scan", Toast.LENGTH_SHORT);
+            Toast.makeText(getApplicationContext(), "Couldn't start scan", Toast.LENGTH_SHORT).show();
         }
 
         @Override
