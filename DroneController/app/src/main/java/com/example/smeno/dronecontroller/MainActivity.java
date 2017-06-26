@@ -60,7 +60,8 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
 
     }
-
+    
+    // pushes new sensor data to bluetooth
 	// everytime there is a change in data on the gyroscope, magnetometer, and accelerometer, register the flight controller data, and send via bluetooth
     private void initMotion() {
         for (int i=0;i<3;i++)
